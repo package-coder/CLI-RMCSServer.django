@@ -15,34 +15,52 @@ from django.http import (
     HttpResponseBadRequest
 )
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.http.response import JsonResponse
+from django.middleware import csrf
 from users.serializers import UserSerializer
 
 def accountLogin(request):
+
     if request.method=='POST':
         try:
             username = request.POST['username']
             password = request.POST['password']
-
-        except (KeyError):
-            return HttpResponseNotAllowed("Can't find the required credential")
-
+        
+        except (KeyError, ObjectDoesNotExist):
+            return HttpResponseBadRequest("Cannot find the required credential")
+        
         else:
-            user = authenticate(request, username=username, password=password)
+            user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
                 serializer = UserSerializer(User.objects.get(pk=request.user.id))
-                return HttpResponse(JsonResponse(serializer.data, safe=False), "Login Successfully")
+                return JsonResponse(serializer.data, safe=False)
             else:
-                return HttpResponseBadRequest("Authentication Failed")
-
-    serializer = UserSerializer(User.objects.get(pk=request.user.id))
-    return JsonResponse(serializer.data, safe=False)
+                return HttpResponseBadRequest('Authentication Failed')
+    
+    if request.method=='GET' and request.user.is_authenticated:
+        serializer = UserSerializer(User.objects.get(pk=request.user.id))
+        return JsonResponse(serializer.data, safe=False)
+    
+    return HttpResponseBadRequest('No current user is logged in')
     
 def accountLogout(request):
-
-    if request.user is None:
-        redirect('/login/')
+    if not request.user.is_authenticated:
+        return redirect('/login/')
 
     logout(request)
     return HttpResponse("Logout Successfully")
+
+def account(request):
+    if not request.user.is_authenticated:
+        return HttpResponseNotAllowed('Not allowed to make the request')
+
+    serializer = UserSerializer(User.objects.get(pk=request.user.id))
+    return JsonResponse(serializer.data, safe=False)
+
+def cookies(request):
+    user = authenticate(username='chris', password='admin101')
+    login(request, user)
+    
+    return HttpResponse(csrf.get_token(request))

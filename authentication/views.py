@@ -19,38 +19,45 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http.response import JsonResponse
 from django.middleware import csrf
 from users.serializers import UserSerializer
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework import status
 
+@api_view(['GET', 'POST'])
 def accountLogin(request):
 
     if request.method=='POST':
-        try:
-            username = request.POST['username']
-            password = request.POST['password']
-        
-        except (KeyError, ObjectDoesNotExist):
-            return HttpResponseBadRequest("Cannot find the required credential")
-        
-        else:
-            user = authenticate(username=username, password=password)
+        if request.data is not None:
+
+            username = 
+            user = authenticate(username=request.data['username'], password=request.data['password'])
             if user is not None:
                 login(request, user)
                 serializer = UserSerializer(User.objects.get(pk=request.user.id))
-                return JsonResponse(serializer.data, safe=False)
+                return Response(serializer.data)
             else:
-                return HttpResponseBadRequest('Authentication Failed')
+                return Response({
+                    'error-message': "Authentication failed"
+                }, status=status.HTTP_400_BAD_REQUEST)
     
     if request.method=='GET' and request.user.is_authenticated:
         serializer = UserSerializer(User.objects.get(pk=request.user.id))
-        return JsonResponse(serializer.data, safe=False)
+        return Response(serializer.data)
     
-    return HttpResponseBadRequest('No current user is logged in')
+    return Response(status=status.HTTP_404_NOT_FOUND)
     
+
+@api_view(['GET'])    
 def accountLogout(request):
     if not request.user.is_authenticated:
-        return redirect('/login/')
+        return Response({
+            'error-message': 'No current use is logged in'
+        }, status=status.HTTP_404_NOT_FOUND)
 
     logout(request)
-    return HttpResponse("Logout Successfully")
+    return Response({
+        'message': 'Logout successfully'
+    })
 
 def account(request):
     if not request.user.is_authenticated:
@@ -60,7 +67,8 @@ def account(request):
     return JsonResponse(serializer.data, safe=False)
 
 def cookies(request):
-    user = authenticate(username='chris', password='admin101')
+    user = authenticate(username='admin-chris', password='@rmcs.password?101')
+    print (request.COOKIES)
     login(request, user)
     
     return HttpResponse(csrf.get_token(request))

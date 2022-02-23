@@ -10,38 +10,50 @@ from django.http import (
 from django.http.response import JsonResponse
 from . serializers import UserSerializer
 from django.contrib.auth.models import User
-
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+from rest_framework import status
 
 
 # Create your views here.
+@api_view(['GET'])
 def index(request):
     if not request.user.is_authenticated:
-        return HttpResponseNotAllowed('Not allowed to make the request')
-    
+        return Response({
+            'error-message': 'User is not authenticated' 
+        }, status=status.HTTP_403_FORBIDDEN)
+
     users = User.objects.all()
     usersSerial = UserSerializer(users, many=True)
-    return JsonResponse(usersSerial.data, safe=False)
+    return Response(usersSerial.data)
 
+@api_view(['GET', 'DELETE', 'PUT'])
 def user(request, userId):
     if not request.user.is_authenticated:
-        return HttpResponseNotAllowed('Not allowed to make the request')
+        return Response({
+            'error-message': 'User is not authenticated' 
+        }, status=status.HTTP_403_FORBIDDEN)
+
 
     if request.method == 'GET':
-        if id is None:
-            return HttpResponseBadRequest('Params cannot be null/none')
+        if userId is None:
+            return Response({
+                'error-message': 'User is not authenticated' 
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(pk=userId)
         except ObjectDoesNotExist:
-            return HttpResponseNotFound('User not found')
-
+            return Response({
+                'error-message': 'userId does not exist' 
+            }, status=status.HTTP_404_NOT_FOUND)
+            
         userSerial = UserSerializer(user)
         return JsonResponse(userSerial.data, safe=False)
+
     
     if request.method == 'DELETE':
         pass
     
     if request.method == 'PUT':
         pass
-        
-    return HttpResponseNotFound()

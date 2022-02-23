@@ -22,15 +22,18 @@ from rest_framework import (
     status
 )
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (
+    IsAuthenticated, 
+    IsAdminUser
+)
 
 
 # Create your views here.
 class UserAPI(APIView):
     authentication_classes = [SessionAuthentication, BasicAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
-    def get(self, request, userId, format=None):
+    def get(self, request, userId=None, format=None):
         if userId is None:
             users = User.objects.all()
             serializer = UserSerializer(users, many=True)
@@ -41,10 +44,22 @@ class UserAPI(APIView):
         return Response(serializer.data)
 
     def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
+        
+        data = request.data
+        try:
+            username = data['username']
+            password = data['password']
+        
+        except KeyError:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        else:
+            user = User.objects.create_user(username=username, password=password)
+            user.email = data.get('email', '')
+            user.firstname = data.get('firstname', '')
+            user.lastname = data.get('lastname', '')
+            user.save()
+
             return Response({
                 "message": "User created successfully"
             }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

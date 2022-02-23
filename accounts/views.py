@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
 from django.shortcuts import (
     render,
-    redirect
+    redirect,
+    get_object_or_404
 )
 
 from django.contrib.auth import (
@@ -29,19 +30,35 @@ def accountLogin(request):
     if request.method=='POST':
         if request.data is not None:
 
-            username = 
-            user = authenticate(username=request.data['username'], password=request.data['password'])
+            try:
+                username = request.data['username']
+                password = request.data['password']
+            except KeyError:
+                return Response({
+                    'error-message': "Key params is not supplied"
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
-                serializer = UserSerializer(User.objects.get(pk=request.user.id))
-                return Response(serializer.data)
+                return Response(UserSerializer(user).data)
             else:
-                return Response({
-                    'error-message': "Authentication failed"
-                }, status=status.HTTP_400_BAD_REQUEST)
-    
+                try:
+                    User.objects.get(username=username)
+                
+                except User.DoesNotExist:
+                    return Response({
+                        'error-message': "This user does not exist"
+                    }, status=status.HTTP_404_NOT_FOUND)
+                
+                else:
+                    return Response({
+                        'error-message': "Authentication credentials failed"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+        
     if request.method=='GET' and request.user.is_authenticated:
-        serializer = UserSerializer(User.objects.get(pk=request.user.id))
+        user = get_object_or_404(User, pk=request.user.id)
+        serializer = UserSerializer(user)
         return Response(serializer.data)
     
     return Response(status=status.HTTP_404_NOT_FOUND)

@@ -12,21 +12,31 @@ from django.http import (
 
 from django.http.response import JsonResponse
 from . serializers import UserSerializer
-from django.contrib.auth.models import User
+from .models import User
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import (
+    api_view,
+    permission_classes
+)
 from rest_framework.views import APIView
 from rest_framework import (
     authentication, 
     permissions,
     status
 )
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.authentication import (
+    SessionAuthentication, 
+    BasicAuthentication
+)
 from rest_framework.permissions import (
     IsAuthenticated, 
     IsAdminUser
 )
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_user(request):
+    pass
 
 # Create your views here.
 class UserAPI(APIView):
@@ -63,3 +73,6 @@ class UserAPI(APIView):
             return Response({
                 "message": "User created successfully"
             }, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, format=None):
+        pass

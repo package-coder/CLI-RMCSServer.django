@@ -1,14 +1,17 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import (
     render,
+    redirect,
     get_object_or_404
 )
 from django.http import (
-    HttpResponse, 
+    HttpResponse,
+    HttpResponseRedirect,
     HttpResponseNotAllowed, 
     HttpResponseBadRequest,
     HttpResponseNotFound
 )
+
 
 from django.http.response import JsonResponse
 from . serializers import UserSerializer
@@ -16,7 +19,8 @@ from .models import User
 from rest_framework.response import Response
 from rest_framework.decorators import (
     api_view,
-    permission_classes
+    permission_classes,
+    authentication_classes
 )
 from rest_framework.views import APIView
 from rest_framework import (
@@ -30,31 +34,22 @@ from rest_framework.authentication import (
 )
 from rest_framework.permissions import (
     IsAuthenticated, 
-    IsAdminUser
+    IsAdminUser,
+    DjangoModelPermissions
 )
+from .models import CustomDjangoModelPermission
 
-@api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
-def update_user(request):
-    pass
 
-# Create your views here.
-class UserAPI(APIView):
-    authentication_classes = [SessionAuthentication, BasicAuthentication]
-    permission_classes = [IsAuthenticated, IsAdminUser]
-
-    def get(self, request, userId=None, format=None):
-        if userId is None:
-            users = User.objects.all()
-            serializer = UserSerializer(users, many=True)
-            return Response(serializer.data)
-        
-        user = get_object_or_404(User, pk=userId)
-        serializer = UserSerializer(user)
+@api_view(['GET', 'POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated, IsAdminUser, DjangoModelPermissions])
+def manage_all_users(request, format=None):
+    if request.method == 'GET':
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 
-    def post(self, request, format=None):
-        
+    if request.method == 'POST':
         data = request.data
         try:
             username = data['username']
@@ -65,14 +60,31 @@ class UserAPI(APIView):
 
         else:
             user = User.objects.create_user(username=username, password=password)
-            user.email = data.get('email', '')
-            user.firstname = data.get('firstname', '')
-            user.lastname = data.get('lastname', '')
             user.save()
 
-            return Response({
-                "message": "User created successfully"
-            }, status=status.HTTP_201_CREATED)
+            return redirect('/api/users/%s' % user.id)
+    
+    
 
-    def patch(self, request, format=None):
-        pass
+@api_view(['PATCH', 'GET', 'DELETE'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated, IsAdminUser, DjangoModelPermissions])
+def manage_user(request, id, format=None):
+    if request.method == 'GET':
+        user = get_object_or_404(User, pk=id)
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+    if request.method == 'PATCH':
+        user = get_object_or_404(User, pk=id)
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return redirect('/api/users/%s' % user.id)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'DELETE':
+        user = get_object_or_404(User, pk=id)
+        user.is_active = False 
+        user.save()
+        return Response({"message": "Data deleted successfully"})

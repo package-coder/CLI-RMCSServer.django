@@ -1,5 +1,6 @@
 from django.shortcuts import (
     render,
+    redirect,
     get_object_or_404
 )
 
@@ -8,61 +9,72 @@ from django.contrib.auth import (
     authenticate,
     login
 )
-from django.contrib.auth.models import User
+from users.models import User
 from django.http.response import JsonResponse
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework import status
+
+from rest_framework.decorators import (
+    api_view,
+    permission_classes,
+    authentication_classes
+)
+from rest_framework.authentication import (
+    SessionAuthentication, 
+    BasicAuthentication
+)
+from rest_framework.permissions import (
+    IsAuthenticated, 
+    IsAdminUser
+)
+
 
 from users.serializers import UserSerializer
 
 
-@api_view(['GET'])    
-def accountLogout(request):
-    if not request.user.is_authenticated:
-        return Response({
-            'error': "No user found"
-        }, status=status.HTTP_404_NOT_FOUND)
-
+@api_view()
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def logout_account(request):
     logout(request)
     return Response({
         'message': 'Logout successfully'
     })
 
-class AccountLoginAPI(APIView):
-    def get(self, request, format=None):
-        if request.user.is_anonymous:
-            return Response({
-            "error": "No user found"
-            },status=status.HTTP_404_NOT_FOUND)
 
-        user = get_object_or_404(User, pk=request.user.id)
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
+@api_view(['POST'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+def login_account(request, format=None):
+
+    try:
+        username = request.data['username']
+        password = request.data['password']
+    except KeyError:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    else:
+        user = authenticate(username=username, password=password)
+        if user is None:
+            try:
+                User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({
+                    'error': "This user does not exist"
+                }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                return Response({
+                    'error': "Authentication credentials failed"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        login(request, user)
+        return redirect('get_account')
         
 
-    def post(self, request, format=None):
-        try:
-            username = request.data['username']
-            password = request.data['password']
-        except KeyError:
-            return Response(status=status.HTTP_403_FORBIDDEN)
-        else:
-            user = authenticate(username=username, password=password)
-            print(user)
-            if user is not None:
-                login(request, user)
-                return Response(UserSerializer(user).data)
-            else:
-                try:
-                    User.objects.get(username=username)
-                except User.DoesNotExist:
-                    return Response({
-                        'error': "This user does not exist"
-                    }, status=status.HTTP_404_NOT_FOUND)
-                else:
-                    return Response({
-                        'error': "Authentication credentials failed"
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
+
+@api_view(['GET'])
+@authentication_classes([SessionAuthentication, BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def get_account(request, format=None):
+    user = get_object_or_404(User, pk=request.user.id)
+    serializer = UserSerializer(user)
+    return Response(serializer.data)

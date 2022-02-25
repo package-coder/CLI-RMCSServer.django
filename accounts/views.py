@@ -29,7 +29,7 @@ from rest_framework.permissions import (
     IsAdminUser
 )
 
-
+import json
 from users.serializers import UserSerializer
 
 
@@ -43,9 +43,10 @@ def logout_account(request):
     })
 
 
-@api_view(['POST'])
+@api_view(['GET', 'POST'])
 @authentication_classes([SessionAuthentication, BasicAuthentication])
 def login_account(request, format=None):
+    print(request.data)
 
     try:
         username = request.data['username']
@@ -67,7 +68,7 @@ def login_account(request, format=None):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
         login(request, user)
-        return redirect('get_account')
+        return Response({"message": "Login successfully"})
         
 
 
@@ -78,3 +79,4 @@ def get_account(request, format=None):
     user = get_object_or_404(User, pk=request.user.id)
     serializer = UserSerializer(user)
     return Response(serializer.data)
+

@@ -4,20 +4,16 @@ import uuid
 
 
 class AFType(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     form_number = models.IntegerField()
-    description = models.CharField(max_length=50)
-    series_length = models.IntegerField()
-    use_type = models.CharField(max_length=50)
+    title = models.CharField(max_length=50)
+    series_length = models.IntegerField(null=True)
+    use_type = models.CharField(max_length=50, null=True)
+    unit = models.CharField(max_length=25, default='STUB')
+    quantity = models.IntegerField(default=1)
 
-class AFUnit(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    af_id = models.ForeignKey(AFType, on_delete=models.DO_NOTHING)
-    unit = models.CharField(max_length=25)
-    quantity = models.IntegerField()
+    REQUIRED_FIELDS = ['form_number', 'title']
 
 class AFRequestHistory(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     prefix = models.CharField(max_length=10)
     control_number = models.CharField(max_length=50)
     state = models.CharField(max_length=50)
@@ -27,10 +23,11 @@ class AFRequestHistory(models.Model):
     requester_name = models.CharField(max_length=255)
 
 class AFRequestItem(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    af_id = models.ForeignKey(AFType, on_delete=models.DO_NOTHING)
-    request_id = models.ForeignKey(AFRequestHistory, on_delete=models.DO_NOTHING)
-    quantity = models.IntegerField()
+    af_type = models.ForeignKey(AFType, on_delete=models.RESTRICT)
+    request = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT)
+    quantity = models.IntegerField(default=1)
+
+    REQUIRED_FIELDS = ['af_type', 'request']
 
 class AFTransactionItem(models.Model):
     pass

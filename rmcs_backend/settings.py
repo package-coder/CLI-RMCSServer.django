@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'accounts',
-    'accountableForms'
+    'accountable_forms'
 ]
 
 
@@ -60,6 +60,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'rmcs_backend.urls'
 
+
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
 ]
@@ -70,6 +71,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
+        'accountable_forms.permissions.ExtendedDjangoModelPermissions'
     ]
 }
 

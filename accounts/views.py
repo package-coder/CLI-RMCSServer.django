@@ -36,11 +36,17 @@ from rest_framework.permissions import (
 from users.serializers import UserSerializer
 
 
+def logout_user(token):
+    token = Token.objects.get(pk=token)
+    token.delete()
+
 @api_view()
 @permission_classes([IsAuthenticated])
 def logout_account(request):
     logout(request)
-    request.user.auth_token.delete()
+    print(request.auth)
+    token = Token.objects.get(pk=request.auth)
+    token.delete()
     return Response({
         'message': 'Logout successfully'
     })
@@ -52,6 +58,7 @@ def login_account(request, format=None):
 
     username = request.data['username']
     password = request.data['password']
+
     user = authenticate(username=username, password=password)
 
     if user is None:

@@ -21,6 +21,9 @@ urlpatterns = [
     path('api/', include([
         path('', include('accounts.urls')), 
         path('users/', include('users.urls')),
+        path('app/', include([
+            path('accountable_forms/', include('accountable_forms.urls'))
+        ])),
     ]))
 
 ]

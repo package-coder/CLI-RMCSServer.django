@@ -15,15 +15,19 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.schemas import get_schema_view
+from rest_framework.documentation import include_docs_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),    
     path('api/', include([
-        path('', include('accounts.urls')), 
-        path('users/', include('users.urls')),
-        path('app/', include([
-            path('accountable_forms/', include('accountable_forms.urls'))
-        ])),
-    ]))
-
+        path('account/', include('accounts.urls')), 
+        path('accountable_forms/', include('accountable_forms.urls'))
+    ])),
+    path('docs/', include_docs_urls(title='RMCSAPI')),
+    path('schema', get_schema_view(
+        title="RMCS",
+        description="API for RMCS",
+        version="1.0.0"
+    ), name='openapi-schema'),
 ]

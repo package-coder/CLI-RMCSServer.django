@@ -1,8 +1,4 @@
-import re
-from django.http import HttpResponseBadRequest
 from django.shortcuts import (
-    render,
-    redirect,
     get_object_or_404
 )
 
@@ -11,40 +7,45 @@ from django.contrib.auth import (
     authenticate,
     login
 )
-from users.models import User
-from django.http.response import JsonResponse
+
+from django.contrib.auth.models import (
+    Group, 
+    Permission
+)
+
+
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import (
+    status, 
+    generics
+)
 
 from rest_framework.decorators import (
     api_view,
     permission_classes,
-    authentication_classes
 )
-from rest_framework.authentication import (
-    SessionAuthentication, 
-    BasicAuthentication
-)
+
 from rest_framework.permissions import (
     IsAuthenticated, 
     IsAdminUser,
     AllowAny
 )
 
-from users.serializers import UserSerializer
+from .serializers import (
+    GroupSerializer,
+    PermissionSerializer, 
+    UserSerializer
+)
 
+from .models import User
 
-def logout_user(token):
-    token = Token.objects.get(pk=token)
-    token.delete()
 
 @api_view()
 @permission_classes([IsAuthenticated])
 def logout_account(request):
+
     logout(request)
-    print(request.auth)
     token = Token.objects.get(pk=request.auth)
     token.delete()
     return Response({
@@ -55,6 +56,10 @@ def logout_account(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_account(request, format=None):
+
+    if request.user.is_authenticated:
+        token = Token.objects.get(user=request.user)
+        token.delete()
 
     username = request.data['username']
     password = request.data['password']
@@ -95,4 +100,89 @@ def get_account(request, format=None):
     user = get_object_or_404(User, pk=request.user.id)
     serializer = UserSerializer(user)
     return Response(serializer.data)
+
+
+
+
+class UserListCreateAPI(generics.ListCreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+class UserRetrieveUpdateAPI(generics.RetrieveUpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+class UserDestroyAPI(generics.DestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class GroupListCreateAPI(generics.ListCreateAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+class GroupRetrieveUpdateDestroyAPI(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+
+class PermissionListAPI(generics.ListAPIView):
+    queryset = Permission.objects.all()
+    serializer_class = PermissionSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+class PermissionRetrieveAPI(generics.RetrieveAPIView):
+    queryset = Permission.objects.all()
+    serializer_class = PermissionSerializer
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def get_all_users(request, format=None):
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def create_user(request, format=None):
+
+    serializer = UserSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.create(serializer.validated_data)
+    user.save()
+
+    return Response({ "id": user.id },
+        status=status.HTTP_201_CREATED
+    )
+
+@api_view(['GET'])
+def get_user(request, id, format=None):
+    user = get_object_or_404(User, pk=id)
+    serializer = UserSerializer(user)
+    return Response(serializer.data)
+
+@api_view(['PATCH'])
+def update_user(request, id, format=None):
+    user = get_object_or_404(User, pk=id)
+    serializer = UserSerializer(user, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.update(serializer.validated_data)
+    user.save()
+    return Response({ "message": "Updated Successfully" })
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def delete_user(request, id, format=None):
+    user = get_object_or_404(User, pk=id)
+    user.is_active = False 
+    user.save()
+    return Response({"message": "Data deleted successfully"})
 

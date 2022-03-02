@@ -12,9 +12,9 @@ from .views import (
 
 urlpatterns = [
     path('types/', AFTypeListCreateAPI.as_view(), name='AFTypeListCreateAPI'),
-    path('type/<int:id>/', AFTypeItemAPI.as_view(), name='AFTypeListCreateAPI'),
+    path('type/<int:pk>/', AFTypeItemAPI.as_view(), name='AFTypeListCreateAPI'),
     path('request_items/', AFRequestItemListCreateAPI.as_view(), name='AFRequestItemListCreateAPI'),
-    path('request_item/<int:id>/', AFRequestItemAPI.as_view(), name='AFRequestItemAPI'),
+    path('request_item/<int:pk>/', AFRequestItemAPI.as_view(), name='AFRequestItemAPI'),
     path('requests/', AFRequestHistoryListCreateAPI.as_view(), name='AFRequestListCreateAPI'),
-    path('request/<int:id>', AFRequestHistoryItemAPI.as_view(), name='AFRequestHistoryItemAPI'),
+    path('request/<int:pk>', AFRequestHistoryItemAPI.as_view(), name='AFRequestHistoryItemAPI'),
 ]

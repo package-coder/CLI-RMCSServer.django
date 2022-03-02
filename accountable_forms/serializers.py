@@ -1,6 +1,5 @@
 from dataclasses import field
 
-from users.models import User
 from .models import (
     AFType,
     AFRequestItem,

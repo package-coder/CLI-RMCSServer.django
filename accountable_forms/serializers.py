@@ -3,7 +3,7 @@ from dataclasses import field
 from .models import (
     AFType,
     AFRequestItem,
-    AFRequestHistory
+    AFRequest
 )
 from rest_framework import serializers
 
@@ -20,5 +20,5 @@ class AFRequestItemSerializer(serializers.ModelSerializer):
 
 class AFRequestHistorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = AFRequestHistory
+        model = AFRequest
         fields = '__all__'

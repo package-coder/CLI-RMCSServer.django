@@ -19,7 +19,7 @@ from .permissions import ExtendedDjangoModelPermissions
 from .models import (
     AFType,
     AFRequestItem,
-    AFRequestHistory
+    AFRequest
 )
 from .serializers import(
     AFTypeSerializer,
@@ -47,9 +47,9 @@ class AFRequestItemAPI(generics.RetrieveUpdateDestroyAPIView):
 
 
 class AFRequestHistoryListCreateAPI(generics.ListCreateAPIView):
-    queryset = AFRequestHistory.objects.all()
+    queryset = AFRequest.objects.all()
     serializer_class = AFRequestHistorySerializer
 
 class AFRequestHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
-    queryset = AFRequestHistory.objects.all()
+    queryset = AFRequest.objects.all()
     serializer_class = AFRequestHistorySerializer

@@ -1,8 +1,8 @@
-from os import stat
 from django.shortcuts import get_object_or_404, render
 from rest_framework import (
     status,
-    generics
+    generics,
+    mixins
 )
 from rest_framework.decorators import (
     api_view,
@@ -17,39 +17,121 @@ from rest_framework.response import Response
 
 from .permissions import ExtendedDjangoModelPermissions
 from .models import (
+    AFTransactionHistory,
+    AFTransactionItem,
     AFType,
     AFRequestItem,
-    AFRequest
+    AFRequestHistory
 )
 from .serializers import(
+    AFRequestHistoryWriteOnlySerializer,
+    AFRequestItemReadOnlySerializer,
+    AFTransactionHistorySerializer,
+    AFTransactionHistoryWriteOnlySerializer,
+    AFTransactionItemReadOnlySerializer,
+    AFTransactionItemSerializer,
     AFTypeSerializer,
     AFRequestItemSerializer,
     AFRequestHistorySerializer
 )
 
+class NestedReadOnlyGenericAPIView(generics.GenericAPIView):
+    read_serializer_class = None
+
+    def get_serializer_class(self):
+
+        if self.request.method in ['GET']:
+            return self.read_serializer_class
+        return self.serializer_class
+
+class NestedWriteOnlyGenericAPIView(generics.GenericAPIView):
+    write_serializer_class = None
+
+    def get_serializer_class(self):
+
+        if self.request.method in ['POST']:
+            return self.write_serializer_class
+        return self.serializer_class
 
 class AFTypeListCreateAPI(generics.ListCreateAPIView):
     queryset = AFType.objects.all()
     serializer_class = AFTypeSerializer
+
 
 class AFTypeItemAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = AFType.objects.all()
     serializer_class = AFTypeSerializer
     
 
-class AFRequestItemListCreateAPI(generics.ListCreateAPIView):
+class AFRequestItemListCreateAPI(generics.ListCreateAPIView, NestedReadOnlyGenericAPIView):
     queryset = AFRequestItem.objects.all()
     serializer_class = AFRequestItemSerializer
+    read_serializer_class = AFRequestItemReadOnlySerializer
 
-class AFRequestItemAPI(generics.RetrieveUpdateDestroyAPIView):
+
+class AFRequestItemAPI(generics.RetrieveUpdateDestroyAPIView, NestedReadOnlyGenericAPIView):
     queryset = AFRequestItem.objects.all()
     serializer_class = AFRequestItemSerializer
+    read_serializer_class = AFRequestItemReadOnlySerializer
 
 
 class AFRequestHistoryListCreateAPI(generics.ListCreateAPIView):
-    queryset = AFRequest.objects.all()
+    queryset = AFRequestHistory.objects.all()
     serializer_class = AFRequestHistorySerializer
+    write_serializer_class = AFRequestHistoryWriteOnlySerializer
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']: 
+            return self.serializer_class
+
+        if 'request_items' not in self.request.data.keys(): 
+            return self.serializer_class
+
+        return self.write_serializer_class
+
 
 class AFRequestHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
-    queryset = AFRequest.objects.all()
+    queryset = AFRequestHistory.objects.all()
     serializer_class = AFRequestHistorySerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+
+        items = AFRequestItem.objects.filter(request_history=serializer.data['id'])
+        serializer_items = AFRequestItemSerializer(items, many=True)
+
+        return Response({ **(serializer.data), 'request_items': serializer_items.data })
+
+
+class AFTransactionHistoryListCreateAPI(generics.ListCreateAPIView):
+    queryset = AFTransactionHistory.objects.all()
+    serializer_class = AFTransactionHistorySerializer
+    write_serializer_class = AFTransactionHistoryWriteOnlySerializer
+
+
+    def get_serializer_class(self):
+        if self.request.method in ['GET']: 
+            return self.serializer_class
+
+        if 'transaction_items' not in self.request.data.keys(): 
+            return self.serializer_class
+
+        return self.write_serializer_class
+
+
+class AFTransactionHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
+    queryset = AFTransactionHistory.objects.all()
+    serializer_class = AFTransactionHistorySerializer
+
+
+class AFTransactionItemListCreateAPI(generics.ListCreateAPIView, NestedReadOnlyGenericAPIView):
+    queryset = AFTransactionItem.objects.all()
+    serializer_class = AFTransactionItemSerializer
+    read_serializer_class = AFTransactionItemReadOnlySerializer
+
+
+class AFTransactionItemAPI(generics.RetrieveUpdateDestroyAPIView, NestedReadOnlyGenericAPIView):
+    queryset = AFTransactionItem.objects.all()
+    serializer_class = AFTransactionItemSerializer
+    read_serializer_class = AFTransactionItemReadOnlySerializer

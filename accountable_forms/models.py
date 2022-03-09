@@ -1,55 +1,115 @@
-from statistics import mode
+from urllib import request
+from django.utils import timezone
 from django.db import models
+from accounts.models import User
 import uuid
 # Create your models here.
 
 
+class AFPrefix(models.Model):
+    id = models.CharField(primary_key=True, unique=True, max_length=50)
+    name = models.CharField(max_length=100)
+
+
+class AFTransactionStatus(models.Model):
+    id = models.CharField(primary_key=True, unique=True, max_length=50)
+    name = models.CharField(max_length=100)
+
+
+class AFTransactionType(models.Model):
+    id = models.CharField(primary_key=True, unique=True, max_length=50)
+    name = models.CharField(max_length=50)
+
+
 class AFType(models.Model):
     form_number = models.IntegerField()
-    title = models.CharField(max_length=50)
-    series_length = models.IntegerField(null=True)
+    title = models.CharField(max_length=100)
+    series_length = models.IntegerField()
     use_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=25, default='STUB')
     quantity = models.IntegerField(default=1)
-    REQUIRED_FIELDS = ['form_number', 'title']
+
+
+class AFState(models.Model):
+    id = models.CharField(primary_key=True, unique=True, max_length=50)
+    name = models.CharField(max_length=100)
+
+
+class AFIssuingRecord(models.Model):
+    first_name = models.CharField(max_length=50, blank=True)
+    last_name = models.CharField(max_length=50, blank=True)
+    
 
 class AFRequestHistory(models.Model):
-    prefix = models.CharField(max_length=10)
-    control_number = models.CharField(max_length=50)
-    state = models.CharField(max_length=50)
-    date_filed = models.DateField()
-    request_type = models.CharField(max_length=50)
-    requester_id = models.CharField(max_length=50)
-    requester_name = models.CharField(max_length=255)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    prefix = models.ForeignKey(AFPrefix, on_delete=models.RESTRICT, default='PREFIX_REQUEST')
+    operator = models.ForeignKey(User, on_delete=models.RESTRICT)
+    status = models.ForeignKey(AFTransactionStatus, on_delete=models.RESTRICT, default='STATUS_PENDING')
+    request_type = models.ForeignKey(AFTransactionType, on_delete=models.RESTRICT, default='TYPE_REQUEST')
+    control_number = models.IntegerField(default=1)
+    request_date = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            control_number = AFRequestHistory.objects.all().aggregate(largest=models.Max('control_number'))['largest']
+
+            if control_number is not None:
+                self.control_number = control_number + 1
+
+        super(AFRequestHistory, self).save(*args, **kwargs)
 
 class AFRequestItem(models.Model):
     af_type = models.ForeignKey(AFType, on_delete=models.RESTRICT)
-    request = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT)
+    request_history = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT, null=True)
     quantity = models.IntegerField(default=1)
-
-    REQUIRED_FIELDS = ['af_type', 'request']
-
-class AFTransactionType(models.Model):
-    pass
-
-class AFTransactionItem(models.Model):
-    pass
 
 
 class AFTransactionHistory(models.Model):
-    request_id = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT, null=True)
-    prefix = models.CharField(max_length=10)
-    control_number = models.CharField(max_length=50)
-    state = models.CharField(max_length=50)
-    date_filed = models.DateField()
-    user_id = models.CharField(max_length=50)
-    user_name = models.CharField(max_length=255)
-    issued_id = models.CharField(max_length=50)
-    issued_name = models.CharField(max_length=255)
-    transaction_type = models.CharField(max_length=50)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    issueing = models.ForeignKey(AFIssuingRecord, on_delete=models.RESTRICT)
+    operator = models.ForeignKey(User, on_delete=models.RESTRICT)
+    transaction_type = models.ForeignKey(AFTransactionType, on_delete=models.RESTRICT)
+    request_history = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT, null=True)
+    prefix = models.ForeignKey(AFPrefix, on_delete=models.RESTRICT, default='PREFIX_TRANSACTION')
+    status = models.ForeignKey(AFTransactionStatus, on_delete=models.RESTRICT, default='STATUS_PENDING')
+    control_number = models.IntegerField(default=1)
+    issued_date = models.DateTimeField(default=timezone.now)
 
-    REQUIRED_FIELDS = ['request_id', 'transaction_type']
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            control_number = AFTransactionHistory.objects.all().aggregate(largest=models.Max('control_number'))['largest']
+
+            if control_number is not None:
+                self.control_number = control_number + 1
+
+        super(AFTransactionHistory, self).save(*args, **kwargs)
+
+
+class AFTransactionItem(models.Model):
+    af_type = models.ForeignKey(AFType, on_delete=models.RESTRICT)
+    request_item = models.ForeignKey(AFRequestItem, on_delete=models.RESTRICT, null=True)
+    transaction_history = models.ForeignKey(AFTransactionHistory, on_delete=models.RESTRICT, null=True)
+    quantity = models.IntegerField(default=1)
 
 
 class AFInventory(models.Model):
-    
+    pass
+
+
+class AFItem(models.Model):
+    af_type = models.ForeignKey(AFType, on_delete=models.RESTRICT)
+    start_series = models.IntegerField()
+    current_series = models.IntegerField()
+    end_series = models.IntegerField()
+    stub_number = models.IntegerField()
+    active = models.BooleanField()
+    prefix = models.CharField(max_length=10, blank=True, null=True)
+    suffix = models.CharField(max_length=10, blank=True, null=True)
+
+class AFPurchaseTransactionItem(models.Model):
+    transaction_item = models.ForeignKey(AFTransactionItem, on_delete=models.RESTRICT)
+    start_series = models.IntegerField()
+    end_series = models.IntegerField()
+    stub_number = models.IntegerField()
+    prefix = models.CharField(max_length=10, blank=True, null=True)
+    suffix = models.CharField(max_length=10, blank=True, null=True)

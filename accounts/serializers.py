@@ -19,23 +19,14 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop('password')
-        username = validated_data.pop('username')
-        groups = validated_data.pop('groups', [])
-        permissions = validated_data.pop('permissions', [])
-
-        user = User.objects.create(username=username, **validated_data)
-
+        user = User.objects.create(**validated_data)
         user.set_password(password)
-        user.groups.set(groups)
-        user.permissions.set(permissions)
         user.save()
-
         return user
 
     def update(self, instance, validated_data):
         instance.set_password(validated_data.get('password', instance.password))
         instance.save()
-
 
         return super().update(instance, validated_data)
 
@@ -61,4 +52,3 @@ class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission
         fields = '__all__'
-        

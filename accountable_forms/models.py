@@ -5,6 +5,10 @@ from accounts.models import User
 import uuid
 # Create your models here.
 
+#TODO: REQUEST - Purchase Transaction Type > Entries
+#FINISHED TODO: REQUEST - same values to TRANSACTION
+#TODO: ITEM - Adding to inventory
+
 
 class AFPrefix(models.Model):
     id = models.CharField(primary_key=True, unique=True, max_length=50)
@@ -35,17 +39,17 @@ class AFState(models.Model):
     name = models.CharField(max_length=100)
 
 
-class AFIssuingRecord(models.Model):
+class AFPersonTransactionRecord(models.Model):
     first_name = models.CharField(max_length=50, blank=True)
     last_name = models.CharField(max_length=50, blank=True)
     
 
 class AFRequestHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    prefix = models.ForeignKey(AFPrefix, on_delete=models.RESTRICT, default='PREFIX_REQUEST')
     operator = models.ForeignKey(User, on_delete=models.RESTRICT)
+    prefix = models.ForeignKey(AFPrefix, on_delete=models.RESTRICT, default='PREFIX_REQUEST')
     status = models.ForeignKey(AFTransactionStatus, on_delete=models.RESTRICT, default='STATUS_PENDING')
-    request_type = models.ForeignKey(AFTransactionType, on_delete=models.RESTRICT, default='TYPE_REQUEST')
+    request_type = models.ForeignKey(AFTransactionType, on_delete=models.RESTRICT)
     control_number = models.IntegerField(default=1)
     request_date = models.DateTimeField(default=timezone.now)
 
@@ -66,7 +70,7 @@ class AFRequestItem(models.Model):
 
 class AFTransactionHistory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    issueing = models.ForeignKey(AFIssuingRecord, on_delete=models.RESTRICT)
+    issued_to = models.ForeignKey(AFPersonTransactionRecord, on_delete=models.RESTRICT)
     operator = models.ForeignKey(User, on_delete=models.RESTRICT)
     transaction_type = models.ForeignKey(AFTransactionType, on_delete=models.RESTRICT)
     request_history = models.ForeignKey(AFRequestHistory, on_delete=models.RESTRICT, null=True)
@@ -107,7 +111,7 @@ class AFItem(models.Model):
     suffix = models.CharField(max_length=10, blank=True, null=True)
 
 class AFPurchaseTransactionItem(models.Model):
-    transaction_item = models.ForeignKey(AFTransactionItem, on_delete=models.RESTRICT)
+    transaction_item = models.ForeignKey(AFTransactionItem, on_delete=models.RESTRICT, null=True)
     start_series = models.IntegerField()
     end_series = models.IntegerField()
     stub_number = models.IntegerField()

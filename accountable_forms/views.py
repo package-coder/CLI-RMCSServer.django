@@ -24,15 +24,16 @@ from .models import (
     AFRequestHistory
 )
 from .serializers import(
-    AFRequestHistoryWriteOnlySerializer,
+    AFPurchaseRequestSerializer,
     AFRequestItemReadOnlySerializer,
-    AFTransactionHistorySerializer,
-    AFTransactionHistoryWriteOnlySerializer,
+    AFPurchaseTransactionSerializer,
+    AFRequestTransactionSerializer,
+    AFTransactionSerializer,
     AFTransactionItemReadOnlySerializer,
     AFTransactionItemSerializer,
     AFTypeSerializer,
     AFRequestItemSerializer,
-    AFRequestHistorySerializer
+    AFRequestSerializer
 )
 
 class NestedReadOnlyGenericAPIView(generics.GenericAPIView):
@@ -42,15 +43,6 @@ class NestedReadOnlyGenericAPIView(generics.GenericAPIView):
 
         if self.request.method in ['GET']:
             return self.read_serializer_class
-        return self.serializer_class
-
-class NestedWriteOnlyGenericAPIView(generics.GenericAPIView):
-    write_serializer_class = None
-
-    def get_serializer_class(self):
-
-        if self.request.method in ['POST']:
-            return self.write_serializer_class
         return self.serializer_class
 
 class AFTypeListCreateAPI(generics.ListCreateAPIView):
@@ -77,52 +69,42 @@ class AFRequestItemAPI(generics.RetrieveUpdateDestroyAPIView, NestedReadOnlyGene
 
 class AFRequestHistoryListCreateAPI(generics.ListCreateAPIView):
     queryset = AFRequestHistory.objects.all()
-    serializer_class = AFRequestHistorySerializer
-    write_serializer_class = AFRequestHistoryWriteOnlySerializer
+    serializer_class = AFRequestSerializer
 
     def get_serializer_class(self):
         if self.request.method in ['GET']: 
             return self.serializer_class
 
-        if 'request_items' not in self.request.data.keys(): 
-            return self.serializer_class
+        if self.request.data['request_type'] == 'TYPE_PURCHASE':
+            return AFPurchaseRequestSerializer
 
-        return self.write_serializer_class
+        return self.serializer_class
 
 
 class AFRequestHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = AFRequestHistory.objects.all()
-    serializer_class = AFRequestHistorySerializer
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-
-        items = AFRequestItem.objects.filter(request_history=serializer.data['id'])
-        serializer_items = AFRequestItemSerializer(items, many=True)
-
-        return Response({ **(serializer.data), 'request_items': serializer_items.data })
+    serializer_class = AFRequestSerializer
 
 
 class AFTransactionHistoryListCreateAPI(generics.ListCreateAPIView):
     queryset = AFTransactionHistory.objects.all()
-    serializer_class = AFTransactionHistorySerializer
-    write_serializer_class = AFTransactionHistoryWriteOnlySerializer
-
+    serializer_class = AFTransactionSerializer
 
     def get_serializer_class(self):
         if self.request.method in ['GET']: 
             return self.serializer_class
 
-        if 'transaction_items' not in self.request.data.keys(): 
-            return self.serializer_class
+        if 'request_history' in self.request.data.keys():
+            return AFRequestTransactionSerializer
 
-        return self.write_serializer_class
+        if self.request.data['transaction_type'] == 'TYPE_PURCHASE':
+            return AFPurchaseTransactionSerializer
 
+        return self.serializer_class
 
 class AFTransactionHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = AFTransactionHistory.objects.all()
-    serializer_class = AFTransactionHistorySerializer
+    serializer_class = AFRequestTransactionSerializer
 
 
 class AFTransactionItemListCreateAPI(generics.ListCreateAPIView, NestedReadOnlyGenericAPIView):

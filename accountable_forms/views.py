@@ -17,6 +17,7 @@ from rest_framework.response import Response
 
 from .permissions import ExtendedDjangoModelPermissions
 from .models import (
+    AFItem,
     AFTransactionHistory,
     AFTransactionItem,
     AFType,
@@ -24,6 +25,7 @@ from .models import (
     AFRequestHistory
 )
 from .serializers import(
+    AFItemSerializer,
     AFPurchaseRequestSerializer,
     AFRequestItemReadOnlySerializer,
     AFPurchaseTransactionSerializer,
@@ -75,7 +77,8 @@ class AFRequestHistoryListCreateAPI(generics.ListCreateAPIView):
         if self.request.method in ['GET']: 
             return self.serializer_class
 
-        if self.request.data['request_type'] == 'TYPE_PURCHASE':
+        request_type = self.request.data['request_type']
+        if request_type == 'TYPE_PURCHASE':
             return AFPurchaseRequestSerializer
 
         return self.serializer_class
@@ -97,7 +100,8 @@ class AFTransactionHistoryListCreateAPI(generics.ListCreateAPIView):
         if 'request_history' in self.request.data.keys():
             return AFRequestTransactionSerializer
 
-        if self.request.data['transaction_type'] == 'TYPE_PURCHASE':
+        transaction_type = self.request.data['transaction_type']
+        if transaction_type == 'TYPE_PURCHASE':
             return AFPurchaseTransactionSerializer
 
         return self.serializer_class
@@ -117,3 +121,8 @@ class AFTransactionItemAPI(generics.RetrieveUpdateDestroyAPIView, NestedReadOnly
     queryset = AFTransactionItem.objects.all()
     serializer_class = AFTransactionItemSerializer
     read_serializer_class = AFTransactionItemReadOnlySerializer
+
+
+class AFItemListAPI(generics.ListAPIView):
+    queryset = AFItem.objects.all()
+    serializer_class = AFItemSerializer

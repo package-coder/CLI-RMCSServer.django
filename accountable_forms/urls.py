@@ -2,6 +2,7 @@
 from django.urls import path, include
 
 from .views import (
+    AFItemListAPI,
     AFRequestHistoryItemAPI,
     AFRequestHistoryListCreateAPI,
     AFTransactionHistoryItemAPI,
@@ -46,6 +47,10 @@ urlpatterns = [
     path('transaction_items/', include([
         path('', AFTransactionItemListCreateAPI.as_view(), name='AFTransactionItemListCreateAPI'),
         path('<pk>/', AFTransactionItemAPI.as_view(), name='AFTransactionItemAPI'),
+    ])),
+    
+    path('af_items/', include([
+        path('', AFItemListAPI.as_view(), name='AFItemListAPI'),
     ]))
 
 ]   

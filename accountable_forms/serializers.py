@@ -1,6 +1,8 @@
-
 from dataclasses import fields
+
+from django.shortcuts import get_object_or_404
 from .models import (
+    AFItem,
     AFPrefix,
     AFPurchaseTransactionItem,
     AFTransactionHistory,
@@ -10,20 +12,17 @@ from .models import (
     AFType,
     AFRequestItem,
     AFRequestHistory,
-    AFPersonTransactionRecord
+    PersonTransactionRecord
 )
+from .mixins import (
+    PurchaseTransactionMixin,
+    BaseRepresentAFMixin, AFItemPurchaseMixin
+)
+
 from rest_framework import serializers
 
 
-class BaseRepresentAFMixin:
-    
-    def to_represent_af(self, instance):
-        
-        instance['prefix'] = AFPrefix.objects.get(pk=instance['prefix']).name
-        instance['status'] = AFTransactionStatus.objects.get(pk=instance['status']).name
-
-        return instance
-
+# TODO request item status - if the transaction item rejects it
 
 class BaseHistorySerializer(serializers.ModelSerializer):
     """
@@ -33,7 +32,7 @@ class BaseHistorySerializer(serializers.ModelSerializer):
 
         This Base Serializer can be use in RequestHistory and TransactionHistory
     """
-    
+
     history_class = None
     history_item_class = None
 
@@ -46,6 +45,7 @@ class BaseHistorySerializer(serializers.ModelSerializer):
         Get history items needs to override as for request items and transaction items
         might be in different structure
     """
+
     def get_history_items(self, validated_data):
         raise NotImplementedError
 
@@ -64,6 +64,7 @@ class BaseHistorySerializer(serializers.ModelSerializer):
         To represent item needs to override as for creation of the history item 
         with different structure of data
     """
+
     def to_represent_item(self, history, item):
         raise NotImplementedError
 
@@ -78,45 +79,9 @@ class BaseHistorySerializer(serializers.ModelSerializer):
         return history
 
 
-class PurchaseTransactionMixin(object):
-
-    purchase_item_class = None
-
-    def get_purchase_entry(self, data):
-        raise NotImplementedError
-
-    def get_transaction_type(self, history):
-        raise NotImplementedError
-
-    def to_represent_puchase_item(self, entry, item):
-        raise NotImplementedError
-
-    def create_purchase_item(self, data):
-        purchase_item = self.purchase_item_class.objects.create(**data)
-
-        return purchase_item
-
-    def add_purchase_item(self, history, item, entry):
-        transaction_type = self.get_transaction_type(history)
-
-        if transaction_type != 'TYPE_PURCHASE':
-            return
-
-        data = self.to_represent_puchase_item(entry, item)
-        self.create_purchase_item(data)
-
-    def create_history_item(self, history, data):
-        entry = self.get_purchase_entry(data)
-        item = super().create_history_item(history, data)
-
-        self.add_purchase_item(history, item, entry)
-
-        return item
-
-
 class AFPersonTransactionRecordSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AFPersonTransactionRecord
+        model = PersonTransactionRecord
         fields = '__all__'
 
 
@@ -138,8 +103,13 @@ class AFTypeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class AFPurchaseTransactionItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AFPurchaseTransactionItem
+        fields = '__all__'
 
-class AFRequestItemSerializer(serializers.ModelSerializer):   
+
+class AFRequestItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = AFRequestItem
         fields = '__all__'
@@ -147,6 +117,10 @@ class AFRequestItemSerializer(serializers.ModelSerializer):
 
 class AFRequestItemReadOnlySerializer(AFRequestItemSerializer):
     af_type = AFTypeSerializer()
+
+
+class AFRequestItemWriteOnlySerializer(AFRequestItemSerializer):
+    entry = AFPurchaseTransactionItemSerializer()
 
 
 class AFRequestSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
@@ -160,10 +134,9 @@ class AFRequestSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
         model = AFRequestHistory
         fields = '__all__'
 
-    
     def get_history_items(self, validated_data):
         return validated_data.pop('request_items')
-    
+
     def to_represent_item(self, history, item):
         data = {
             'request_history': history,
@@ -175,29 +148,29 @@ class AFRequestSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data = super().to_represent_af(data)
-        
+
         data['request_type'] = AFTransactionType.objects.get(pk=data['request_type']).name
-        
+
         items_serializer = AFRequestItemReadOnlySerializer(
-            AFRequestItem.objects.filter(request_history=data['id']), 
+            AFRequestItem.objects.filter(request_history=data['id']),
             many=True
         )
 
         data['request_items'] = items_serializer.data
         return data
-    
+
 
 class AFPurchaseRequestSerializer(PurchaseTransactionMixin, AFRequestSerializer):
-    request_items = AFRequestItemSerializer(write_only=True, many=True)
-    purchase_item_class = None
+    request_items = AFRequestItemWriteOnlySerializer(write_only=True, many=True)
+    purchase_item_class = AFPurchaseTransactionItem
 
     def get_purchase_entry(self, data):
         return data.pop('entry')
 
     def get_transaction_type(self, history):
         return history.request_type.id
-    
-    def to_represent_puchase_item(self, entry, item):
+
+    def to_represent_purchase_item(self, entry, item):
         data = {
             'request_item': item,
             **entry
@@ -205,22 +178,17 @@ class AFPurchaseRequestSerializer(PurchaseTransactionMixin, AFRequestSerializer)
 
         return data
 
-
-
-
-class AFPurchaseTransactionItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AFPurchaseTransactionItem
-        fields = '__all__'
+    def add_af_item(self, history, purchase_item, transaction_item):
+        pass
 
 
 class AFTransactionItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = AFTransactionItem
         fields = '__all__'
-   
 
-class AFTransactionItemWriteOnlySerializer(AFTransactionItemSerializer):
+
+class AFTransactionEntryItemSerializer(AFTransactionItemSerializer):
     entry = AFPurchaseTransactionItemSerializer()
 
 
@@ -238,7 +206,7 @@ class AFTransactionSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
         fields = '__all__'
 
     def get_person_record(self, data):
-        person_record = AFPersonTransactionRecord.objects.create(**data)
+        person_record = PersonTransactionRecord.objects.create(**data)
 
         return person_record
 
@@ -263,7 +231,6 @@ class AFTransactionSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
         data = super().to_representation(instance)
         data = super().to_represent_af(data)
 
-
         transaction_items = AFTransactionItem.objects.filter(transaction_history=data['id'])
         items_serializer = AFTransactionItemSerializer(transaction_items, many=True)
 
@@ -273,38 +240,72 @@ class AFTransactionSerializer(BaseRepresentAFMixin, BaseHistorySerializer):
         return data
 
 
-class AFRequestTransactionSerializer(PurchaseTransactionMixin, AFTransactionSerializer):
-    purchase_item_class = None
+class AFRequestTransactionSerializer(AFItemPurchaseMixin,
+                                     PurchaseTransactionMixin,
+                                     AFTransactionSerializer):
 
-    
+    transaction_items = serializers.ListSerializer(child=serializers.UUIDField(), write_only=True)
+    purchase_item_class = AFPurchaseTransactionItem
+
     def get_purchase_entry(self, data):
-        return None
-    
+        request_item = data['request_item']
+        entry = get_object_or_404(self.purchase_item_class, request_item=request_item)
+        return entry
+
     def get_transaction_type(self, history):
-        return history.transaction_type.id
-    
-    def to_represent_puchase_item(self, entry, item):
-        data = {
-            'transaction_item': item,
-            **entry
-        }
+        return history.request_history.request_type.id
+
+    def to_represent_purchase_item(self, entry, item):
+        entry.transaction_item = item
+
+        return entry
+
+    def create_purchase_item(self, data):
+        data.save()
 
         return data
 
-
     def get_history_items(self, validated_data):
+
+        to_approve_items = validated_data.pop('transaction_items')
         request_history = validated_data['request_history']
         request_items = AFRequestItem.objects.filter(request_history=request_history)
 
-        return request_items
+        # If list is empty
+        if not to_approve_items:
+            return request_items
+
+        # Filter all the request_items using uuid passed in transaction_items
+        approved_items = list(filter(lambda item: item.id in to_approve_items, request_items))
+        return approved_items
+
+    def create(self, validated_data):
+        request_history = validated_data['request_history']
+
+        try:
+            current_history = self.history_class.objects.get(request_history=request_history)
+            return current_history
+        except AFTransactionHistory.DoesNotExist:
+            pass
+
+        history = super().create(validated_data)
+
+        status = AFTransactionStatus.objects.get(pk='STATUS_COMPLETED')
+        request_history.status = status
+        history.status = status
+
+        request_history.save()
+        history.save()
+        return history
 
     def get_history(self, validated_data):
+        request_history = validated_data['request_history']
         history = super().get_history(validated_data)
-        history.transaction_type = validated_data['request_history'].request_type
+        history.transaction_type = request_history.request_type
         history.save()
 
         return history
-    
+
     def to_represent_item(self, history, item):
         data = {
             'transaction_history': history,
@@ -315,9 +316,17 @@ class AFRequestTransactionSerializer(PurchaseTransactionMixin, AFTransactionSeri
 
         return data
 
+    def to_representation(self, instance):
+        print(instance)
+        data = super().to_representation(instance)
+        return data
 
-class AFPurchaseTransactionSerializer(PurchaseTransactionMixin, AFTransactionSerializer):
-    transaction_items = AFTransactionItemWriteOnlySerializer(write_only=True, many=True)
+
+class AFPurchaseTransactionSerializer(AFItemPurchaseMixin,
+                                      PurchaseTransactionMixin,
+                                      AFTransactionSerializer):
+
+    transaction_items = AFTransactionEntryItemSerializer(write_only=True, many=True)
     purchase_item_class = AFPurchaseTransactionItem
 
     def get_purchase_entry(self, data):
@@ -325,8 +334,8 @@ class AFPurchaseTransactionSerializer(PurchaseTransactionMixin, AFTransactionSer
 
     def get_transaction_type(self, history):
         return history.transaction_type.id
-    
-    def to_represent_puchase_item(self, entry, item):
+
+    def to_represent_purchase_item(self, entry, item):
         data = {
             'transaction_item': item,
             **entry
@@ -334,8 +343,14 @@ class AFPurchaseTransactionSerializer(PurchaseTransactionMixin, AFTransactionSer
 
         return data
 
+
 class AFTransactionItemReadOnlySerializer(AFTransactionItemSerializer):
     af_type = AFTypeSerializer()
     request_item = AFRequestItemSerializer()
     transaction_history = AFTransactionSerializer()
- 
+
+
+class AFItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AFItem
+        fields = '__all__'

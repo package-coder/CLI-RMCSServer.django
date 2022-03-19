@@ -24,7 +24,7 @@ from .models import (
     AFRequestItem,
     AFRequestHistory
 )
-from .serializers import(
+from .serializers import (
     AFItemSerializer,
     AFPurchaseRequestSerializer,
     AFRequestItemReadOnlySerializer,
@@ -38,14 +38,15 @@ from .serializers import(
     AFRequestSerializer
 )
 
+
 class NestedReadOnlyGenericAPIView(generics.GenericAPIView):
     read_serializer_class = None
 
     def get_serializer_class(self):
-
         if self.request.method in ['GET']:
             return self.read_serializer_class
         return self.serializer_class
+
 
 class AFTypeListCreateAPI(generics.ListCreateAPIView):
     queryset = AFType.objects.all()
@@ -55,7 +56,7 @@ class AFTypeListCreateAPI(generics.ListCreateAPIView):
 class AFTypeItemAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = AFType.objects.all()
     serializer_class = AFTypeSerializer
-    
+
 
 class AFRequestItemListCreateAPI(generics.ListCreateAPIView, NestedReadOnlyGenericAPIView):
     queryset = AFRequestItem.objects.all()
@@ -74,7 +75,7 @@ class AFRequestHistoryListCreateAPI(generics.ListCreateAPIView):
     serializer_class = AFRequestSerializer
 
     def get_serializer_class(self):
-        if self.request.method in ['GET']: 
+        if self.request.method in ['GET']:
             return self.serializer_class
 
         request_type = self.request.data['request_type']
@@ -94,7 +95,7 @@ class AFTransactionHistoryListCreateAPI(generics.ListCreateAPIView):
     serializer_class = AFTransactionSerializer
 
     def get_serializer_class(self):
-        if self.request.method in ['GET']: 
+        if self.request.method in ['GET']:
             return self.serializer_class
 
         if 'request_history' in self.request.data.keys():
@@ -105,6 +106,7 @@ class AFTransactionHistoryListCreateAPI(generics.ListCreateAPIView):
             return AFPurchaseTransactionSerializer
 
         return self.serializer_class
+
 
 class AFTransactionHistoryItemAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = AFTransactionHistory.objects.all()

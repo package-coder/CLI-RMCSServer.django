@@ -7,9 +7,9 @@ import uuid
 
 # Create your models here.
 
-# TODO: REQUEST - Purchase Transaction Type > Entries
-# FINISHED TODO: REQUEST - same values to TRANSACTION
-# TODO: ITEM - Adding to inventory
+# COMPLETED TODO: REQUEST - Purchase Transaction Type > Entries
+# COMPLETED TODO: REQUEST - same values to TRANSACTION
+# COMPLETED TODO: ITEM - Adding to inventory
 
 
 class AFPrefix(models.Model):

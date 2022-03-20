@@ -9,7 +9,12 @@ class User(AbstractUser):
 
     objects = UserManager()
 
-
     class Meta(AbstractUser.Meta):
         swappable = "AUTH_USER_MODEL"
 
+
+class Person(models.Model):
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, null=True)
+    birthDate = models.DateField()

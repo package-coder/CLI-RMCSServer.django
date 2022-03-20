@@ -3,13 +3,13 @@ from django.shortcuts import (
 )
 
 from django.contrib.auth import (
-    logout, 
+    logout,
     authenticate,
     login
 )
 
 from django.contrib.auth.models import (
-    Group, 
+    Group,
     Permission
 )
 
@@ -17,7 +17,7 @@ from django.contrib.auth.models import (
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework import (
-    status, 
+    status,
     generics
 )
 
@@ -27,14 +27,14 @@ from rest_framework.decorators import (
 )
 
 from rest_framework.permissions import (
-    IsAuthenticated, 
+    IsAuthenticated,
     IsAdminUser,
     AllowAny
 )
 
 from .serializers import (
     GroupSerializer,
-    PermissionSerializer, 
+    PermissionSerializer,
     UserSerializer
 )
 
@@ -84,14 +84,13 @@ def login_account(request, format=None):
         token.delete()
 
     token = Token.objects.create(user=user)
-    
+
     login(request, user)
     return Response({
         "token": token.key,
         "id": user.id,
         "message": "Login Successfully"
     })
-        
 
 
 @api_view(['GET'])
@@ -102,15 +101,15 @@ def get_account(request, format=None):
     return Response(serializer.data)
 
 
-
-
 class UserListCreateAPI(generics.ListCreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+
 class UserRetrieveUpdateAPI(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
 
 class UserDestroyAPI(generics.DestroyAPIView):
     queryset = User.objects.all()
@@ -121,6 +120,7 @@ class GroupListCreateAPI(generics.ListCreateAPIView):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
+
 
 class GroupRetrieveUpdateDestroyAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = Group.objects.all()
@@ -133,14 +133,11 @@ class PermissionListAPI(generics.ListAPIView):
     serializer_class = PermissionSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
 
+
 class PermissionRetrieveAPI(generics.RetrieveAPIView):
     queryset = Permission.objects.all()
     serializer_class = PermissionSerializer
     permission_classes = [IsAuthenticated, IsAdminUser]
-
-
-
-
 
 
 @api_view(['GET'])
@@ -149,6 +146,7 @@ def get_all_users(request, format=None):
     users = User.objects.all()
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
@@ -159,15 +157,17 @@ def create_user(request, format=None):
     user = serializer.create(serializer.validated_data)
     user.save()
 
-    return Response({ "id": user.id },
-        status=status.HTTP_201_CREATED
-    )
+    return Response({"id": user.id},
+                    status=status.HTTP_201_CREATED
+                    )
+
 
 @api_view(['GET'])
 def get_user(request, id, format=None):
     user = get_object_or_404(User, pk=id)
     serializer = UserSerializer(user)
     return Response(serializer.data)
+
 
 @api_view(['PATCH'])
 def update_user(request, id, format=None):
@@ -176,13 +176,13 @@ def update_user(request, id, format=None):
     serializer.is_valid(raise_exception=True)
     user = serializer.update(serializer.validated_data)
     user.save()
-    return Response({ "message": "Updated Successfully" })
+    return Response({"message": "Updated Successfully"})
+
 
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 def delete_user(request, id, format=None):
     user = get_object_or_404(User, pk=id)
-    user.is_active = False 
+    user.is_active = False
     user.save()
     return Response({"message": "Data deleted successfully"})
-
